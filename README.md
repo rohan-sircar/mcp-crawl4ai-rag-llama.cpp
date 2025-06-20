@@ -1,3 +1,92 @@
+# Crawl4AI MCP Server - llama.cpp edition
+
+Fork of craw4ai mcp server with local llama.cpp server support for embedding and summarization models
+
+Technically it should be compatible with any OpenAI compatible API server (vllm et al) but I have only tested with llama.cpp 
+
+## Setup
+
+The only new config additions are the two env variables `EMBEDDINGS_API_BASE` AND `SUMMARIZE_API_BASE`
+
+```
+# Base URL for embeddings API 
+EMBEDDINGS_API_BASE=http://localhost:8081/v1
+
+# Base URL for summarization API 
+SUMMARIZE_API_BASE=http://localhost:8082
+```
+
+You can add these to your .env file
+
+The `MODEL_CHOICE` is removed/replaced by the summarize model config, but it's not necessary to set a value for it
+
+```
+EMBEDDINGS_MODEL=
+SUMMARIZE_MODEL=
+```
+
+Run your llama.cpp instances like so
+
+### Embeddings model:
+```
+llama-server --embeddings -m models/Qwen3-Embedding-0.6B-f16.gguf --port 8081 -ub 8192 -c 8192 -ngl 100 --pooling last -fa -ctk q8_0 -ctv q8_0
+```
+Note the following:
+- `--embeddings` flag is neccessary
+- `-ub` (batch size) needs to be set to at least 2k to avoid batch size exceeded errors
+- `pooling` type needs to be set for the openAI embeddings api of llama.cpp 
+- Make sure to compile and **use** the most recent version of llama.cpp server. The embeddings API has had a lot of changes as of writing and you might run into issues with older versions: https://github.com/ggml-org/llama.cpp/issues/14204
+- The embeddings model needs to support a large batch size (smaller models like gte-small don't)
+
+Also, note the dimension size of the model since you'll need to input it into supabase's pg schema. <br>
+Open src/crawled_pages.sql and set the `embedding vector(1024)` column size to whatever is supported by the select model. Note that if you want to change your model later, you will need to recreate the schema from scratch. This is true even if the dimensions are the same size, since the embeddings matrix values are computed diferrently for every model.
+
+### Summarize model:
+```
+llama-server -m models/Qwen_Qwen3-1.7B-Q6_K.gguf -ngl 100 --port 8082 -fa
+```
+
+### Run supabase
+```
+cd supabase
+docker compose up -d
+```
+open the supabase UI at http://localhost:8000 with default username:supabase and password:supabase
+copy the contents of src/crawled_pages.sql and paste into the SQL editor of the supabase project (and hit run, duh)
+
+### venv setup (borrowed from original documentation)
+1. Install uv if you don't have it:
+   ```bash
+   pip install uv
+   ```
+
+1. Create and activate a virtual environment:
+   ```bash
+   uv venv
+   .venv\Scripts\activate
+   # on Mac/Linux: source .venv/bin/activate
+   ```
+
+1. Install dependencies:
+   ```bash
+   uv pip install -e .
+   crawl4ai-setup
+   ```
+Note: You will need to install playwright, the exact steps depend on your OS/distro
+
+### Run the crawl4ai mcp server using mcpo
+```
+cp .env.example .env # only needed once, then adjust your configurations in the .env file
+python src/crawl4ai_mcp.py
+```
+### Access via MCPO
+```
+uvx mcpo --port 8084 --server-type sse -- http://localhost:8083/sse
+```
+open `http://localhost:8084/docs` if everything is setup correctly you should see the swagger API documentation of the crawl4ai tool calls. From there you can test out the various tool calls and check if everything is working
+
+## Original description as follows:
+
 <h1 align="center">Crawl4AI RAG MCP Server</h1>
 
 <p align="center">

@@ -214,6 +214,7 @@ async def crawl4ai_lifespan(server: FastMCP) -> AsyncIterator[Crawl4AIContext]:
             except Exception as e:
                 print(f"Error closing repository extractor: {e}")
 
+print("Initializing MCP server")
 # Initialize FastMCP server
 mcp = FastMCP(
     "mcp-crawl4ai-rag",
@@ -503,7 +504,7 @@ async def crawl_single_page(ctx: Context, url: str) -> str:
                 "success": True,
                 "url": url,
                 "chunks_stored": len(chunks),
-                "code_examples_stored": len(code_blocks) if code_blocks else 0,
+                "code_examples_stored": len(code_blocks) if extract_code_examples and code_blocks else 0,
                 "content_length": len(result.markdown),
                 "total_word_count": total_word_count,
                 "source_id": source_id,
@@ -710,7 +711,7 @@ async def smart_crawl_url(ctx: Context, url: str, max_depth: int = 3, max_concur
             "crawl_type": crawl_type,
             "pages_crawled": len(crawl_results),
             "chunks_stored": chunk_count,
-            "code_examples_stored": len(code_examples),
+            "code_examples_stored": len(code_blocks) if extract_code_examples_enabled and code_blocks else 0,
             "sources_updated": len(source_content_map),
             "urls_crawled": [doc['url'] for doc in crawl_results][:5] + (["..."] if len(crawl_results) > 5 else [])
         }, indent=2)

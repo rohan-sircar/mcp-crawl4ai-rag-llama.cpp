@@ -14,6 +14,24 @@ import time
 # Load OpenAI API key for embeddings
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+# Initialize OpenAI clients
+
+# Client for embeddings
+embeddings_api_base = os.getenv("EMBEDDINGS_API_BASE")
+embeddings_model = os.getenv("EMBEDDINGS_MODEL", "text-embedding-3-small")
+embeddings_client_kwargs = {}
+if embeddings_api_base:
+    embeddings_client_kwargs["base_url"] = embeddings_api_base
+embeddings_client = openai.OpenAI(api_key=openai.api_key, **embeddings_client_kwargs)
+
+# Client for summarization
+summarize_api_base = os.getenv("SUMMARIZE_API_BASE")
+summarize_model = os.getenv("SUMMARIZE_MODEL", "gpt-3.5-turbo")
+summarize_client_kwargs = {}
+if summarize_api_base:
+    summarize_client_kwargs["base_url"] = summarize_api_base
+summarize_client = openai.OpenAI(api_key=openai.api_key, **summarize_client_kwargs)
+
 def get_supabase_client() -> Client:
     """
     Get a Supabase client with the URL and key from environment variables.
@@ -42,15 +60,22 @@ def create_embeddings_batch(texts: List[str]) -> List[List[float]]:
     if not texts:
         return []
     
+    # Use embeddings client
+    client = embeddings_client
+    
     max_retries = 3
     retry_delay = 1.0  # Start with 1 second delay
     
     for retry in range(max_retries):
         try:
-            response = openai.embeddings.create(
-                model="text-embedding-3-small", # Hardcoding embedding model for now, will change this later to be more dynamic
+            response = client.embeddings.create_(
+                model=embeddings_model,
                 input=texts
             )
+            # Extract and return the embeddings
+            # print(f"Debug embeddings - count: {len(response.data)}")
+            # if response.data:
+            #     print(f"First embedding contents: {response.data[0].embedding}")
             return [item.embedding for item in response.data]
         except Exception as e:
             if retry < max_retries - 1:
@@ -67,8 +92,8 @@ def create_embeddings_batch(texts: List[str]) -> List[List[float]]:
                 
                 for i, text in enumerate(texts):
                     try:
-                        individual_response = openai.embeddings.create(
-                            model="text-embedding-3-small",
+                        individual_response = client.embeddings.create(
+                            model=embeddings_model,
                             input=[text]
                         )
                         embeddings.append(individual_response.data[0].embedding)
@@ -112,7 +137,6 @@ def generate_contextual_embedding(full_document: str, chunk: str) -> Tuple[str, 
         - The contextual text that situates the chunk within the document
         - Boolean indicating if contextual embedding was performed
     """
-    model_choice = os.getenv("MODEL_CHOICE")
     
     try:
         # Create the prompt for generating contextual information
@@ -124,12 +148,11 @@ Here is the chunk we want to situate within the whole document
 {chunk}
 </chunk> 
 Please give a short succinct context to situate this chunk within the overall document for the purposes of improving search retrieval of the chunk. Answer only with the succinct context and nothing else."""
-
         # Call the OpenAI API to generate contextual information
-        response = openai.chat.completions.create(
-            model=model_choice,
+        response = summarize_client.chat.completions.create(
+            model=summarize_model,
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that provides concise contextual information."},
+                {"role": "system", "content": "You are a helpful assistant that provides concise contextual information. /no_think"},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.3,
@@ -449,7 +472,6 @@ def generate_code_example_summary(code: str, context_before: str, context_after:
     Returns:
         A summary of what the code example demonstrates
     """
-    model_choice = os.getenv("MODEL_CHOICE")
     
     # Create the prompt
     prompt = f"""<context_before>
@@ -468,10 +490,10 @@ Based on the code example and its surrounding context, provide a concise summary
 """
     
     try:
-        response = openai.chat.completions.create(
-            model=model_choice,
+        response = summarize_client.chat.completions.create(
+            model=summarize_model,
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that provides concise code example summaries."},
+                {"role": "system", "content": "You are a helpful assistant that provides concise code example summaries. /no_think"},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.3,
@@ -647,9 +669,6 @@ def extract_source_summary(source_id: str, content: str, max_length: int = 500) 
     if not content or len(content.strip()) == 0:
         return default_summary
     
-    # Get the model choice from environment variables
-    model_choice = os.getenv("MODEL_CHOICE")
-    
     # Limit content length to avoid token limits
     truncated_content = content[:25000] if len(content) > 25000 else content
     
@@ -663,10 +682,10 @@ The above content is from the documentation for '{source_id}'. Please provide a 
     
     try:
         # Call the OpenAI API to generate the summary
-        response = openai.chat.completions.create(
-            model=model_choice,
+        response = summarize_client.chat.completions.create(
+            model=summarize_model,
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that provides concise library/tool/framework summaries."},
+                {"role": "system", "content": "You are a helpful assistant that provides concise library/tool/framework summaries. /no_think"},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.3,
