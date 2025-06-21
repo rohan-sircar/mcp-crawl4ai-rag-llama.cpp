@@ -39,7 +39,7 @@ Note the following:
 - The embeddings model needs to support a large batch size (smaller models like gte-small don't)
 
 Also, note the dimension size of the model since you'll need to input it into supabase's pg schema. <br>
-Open src/crawled_pages.sql and set the `embedding vector(1024)` column size to whatever is supported by the select model. Note that if you want to change your model later, you will need to recreate the schema from scratch. This is true even if the dimensions are the same size, since the embeddings matrix values are computed diferrently for every model.
+Open crawled_pages.sql and set the `embedding vector(1024)` column size to whatever is supported by the select model. Note that if you want to change your model later, you will need to recreate the schema from scratch. This is true even if the dimensions are the same size, since the embeddings matrix values are computed diferrently for every model.
 
 ### Summarize model:
 ```
@@ -53,7 +53,7 @@ cp .env.example .env
 docker compose up -d
 ```
 open the supabase UI at http://localhost:8000 with default username:supabase and password:supabase
-copy the contents of src/crawled_pages.sql and paste into the SQL editor of the supabase project (and hit run, duh)
+copy the contents of crawled_pages.sql and paste into the SQL editor of the supabase project (and hit run, duh)
 
 ### venv setup (borrowed from original documentation)
 1. Install uv if you don't have it:
@@ -67,6 +67,10 @@ copy the contents of src/crawled_pages.sql and paste into the SQL editor of the 
    .venv\Scripts\activate
    # on Mac/Linux: source .venv/bin/activate
    ```
+1. Optional
+  ```
+   uv pip install torch --index-url https://download.pytorch.org/whl/rocm6.3
+  ```
 
 1. Install dependencies:
    ```bash
