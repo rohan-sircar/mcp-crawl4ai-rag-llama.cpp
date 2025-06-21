@@ -68,7 +68,7 @@ def create_embeddings_batch(texts: List[str]) -> List[List[float]]:
     
     for retry in range(max_retries):
         try:
-            response = client.embeddings.create_(
+            response = client.embeddings.create(
                 model=embeddings_model,
                 input=texts
             )
