@@ -49,6 +49,7 @@ llama-server -m models/Qwen_Qwen3-1.7B-Q6_K.gguf -ngl 100 --port 8082 -fa
 ### Run supabase
 ```
 cd supabase
+cp .env.example .env
 docker compose up -d
 ```
 open the supabase UI at http://localhost:8000 with default username:supabase and password:supabase
